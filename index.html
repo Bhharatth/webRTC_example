@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
+  </head>
+  <body>
+    <table>
+      <tr>
+        <td><video id="v1" autoplay width="200"></video></td>
+        <td><video id="v2" autoplay width="200"></video></td>
+      </tr>
+      <tr>
+        <td id="v1info">0x0</td>
+        <td id="v2info">0x0</td>
+      </tr>
+    </table>
+    <button onclick="start()">Start!</button>
+    <script>
+      var pc1 = new RTCPeerConnection(); //sender
+      var pc2 = new RTCPeerConnection(); //reciever
+
+      var start = () => {
+        navigator.mediaDevices
+          .getUserMedia({ audio: true, video: true })
+          .then((stream) => {
+            attachVideo(v1, v1info, stream); // attaching video on v1
+            pc1.addStream(stream); // sending video from sender
+          })
+          .catch(console.error);
+      };
+
+      var dimensions = (v) => v.videoWidth + "x" + v.videoHeight;
+
+      var attachVideo = (videoTag, vInfo, stream) => {
+        videoTag.srcObject = stream;
+        videoTag.addEventListener(
+          "loadedMetadata",
+          (e) => update(vInfo, dimensions(videoTag)),
+          false
+        );
+      };
+
+      var addCandidate = (pc, can) => {
+        can && pc.addIceCandidate(can).catch(console.error);
+      };
+
+      pc1.onicecandidate = (e) => {
+        addCandidate(pc1, e.candidate);
+      };
+
+      pc2.onicecandidate = (e) => {
+        addCandidate(pc2, e.candidate);
+      };
+
+      pc1.oniceconnectionstatechange = (e) =>
+        console.log("pc1.iceConnChangeState:", pc1.oniceconnectionstatechange);
+      pc2.oniceconnectionstatechange = (e) =>
+        console.log("pc1.iceConnChangeState:", pc2.oniceconnectionstatechange);
+
+      // creating handShake b/w two parties
+
+      pc1.onnegotiationneeded = (e) => {
+        pc1
+          .createOffer()
+          .then((d) => {
+            return pc1.setLocalDescription(d);
+          })
+          .then(() => pc2.setRemoteDescription(pc1.localDescription))
+          .then(() => pc2.createAnswer())
+          .then((d) => {
+            return pc2.setLocalDescription(d);
+          })
+          .then(() => pc1.setRemoteDescription(pc2.localDescription))
+          .catch(console.error);
+      };
+
+      //getting the video stream that send by the function "addStream"  using "onTrack"  function
+      pc2.ontrack = (e) => {
+        return attachVideo(v2, v2info, e.stream[0]);
+      };
+
+      var update = (div, msg) => (div.innerHTML = msg);
+    </script>
+  </body>
+</html>
